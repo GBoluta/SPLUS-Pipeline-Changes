@@ -1031,7 +1031,7 @@ def get_best_model(models, data, ref_mag_cols, splus_mag_cols=None):
     return output
 
 
-def get_best_model_v2(models, data, ref_mag_cols, splus_mag_cols=None):
+def get_best_model_v2(models, data, ref_mag_cols, splus_mag_cols=None, bayesian_flag=False):
     # Slice models array to get only reference magnitudes
     model_ref_mag_array = models.loc[:, ref_mag_cols].values
 
@@ -1058,7 +1058,12 @@ def get_best_model_v2(models, data, ref_mag_cols, splus_mag_cols=None):
                     ref_magerr_array=ref_magerr_array)
 
     # Get the best model id
-    best_model_id = np.argmin(chi2)
+    if bayesian_flag:
+        prior = models['prior'].values
+        posterior = [prior[i] * np.exp(-chi2[i]/2) for i in range(len(chi2))] 
+        best_model_id = np.argmax(posterior)
+    else:
+        best_model_id = np.argmin(chi2)
 
     # Calculate chi2 for each model
     mag_shift = get_mag_shift(model_ref_mag_array=model_ref_mag_array,
@@ -1250,7 +1255,8 @@ def get_model_mags(models_file, data_file, save_file,
 
 
 def get_model_mags_v2(models_file, data_file, save_file,
-                      ref_mag_cols, pred_mag_cols=None):
+                      ref_mag_cols, pred_mag_cols=None,
+                      bayesian_flag=False, cut=None):
     """
     Fit model mags to a reference catalog and predict the values of magnitudes
     for another filter system
@@ -1285,6 +1291,11 @@ def get_model_mags_v2(models_file, data_file, save_file,
     # load models
     print('Loading models from file %s' % models_file)
     models = load_models(models_file)
+
+    # Limit the models to the desired E(B-V)
+    if cut != None:
+        filt   = models['EB_V'] == cut
+        models = models[filt]
 
     # load data
     print('Loading data from file %s' % data_file)
@@ -1324,7 +1335,8 @@ def get_model_mags_v2(models_file, data_file, save_file,
         output[i, 2:] = get_best_model_v2(models=models,
                                           data=data.iloc[i, :],
                                           ref_mag_cols=ref_mag_cols,
-                                          splus_mag_cols=pred_mag_cols)
+                                          splus_mag_cols=pred_mag_cols,
+                                          bayesian_flag=bayesian_flag)
 
     print('\n\nFinished estimating best model for {0} stars'.format(Nlines))
 

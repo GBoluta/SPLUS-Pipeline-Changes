@@ -59,7 +59,8 @@ import utils
 ################################################################################
 # Configuration starts here
 
-path_to_models_file = ""
+path_to_external_models_file = ""
+path_to_internal_models_file = ""
 
 path_to_crossmatched_catalogs = ""
 
@@ -74,6 +75,9 @@ splus_mag_cols = ['SPLUS_F378', 'SPLUS_F395', 'SPLUS_U',    'SPLUS_F410',
                   'SPLUS_F660', 'SPLUS_I',    'SPLUS_F861', 'SPLUS_Z']
 
 zp_fitting_mag_cut = [14, 19] # Pode deixar como esta
+
+bayesian_flag = False
+step_flag     = False
 
 
 
@@ -123,7 +127,7 @@ def fit_models_to_reference():
     print('')
     
     
-    models_file = path_to_models_file
+    models_file = path_to_external_models_file
     data_file   = path_to_crossmatched_catalogs + "/{field}_crossmatch_splus_{ref}.catalog".format(field = field, ref = reference_catalog)
     save_file   = calibration_path_initial + "/reference_fit_models.cat"
     
@@ -135,7 +139,8 @@ def fit_models_to_reference():
                                 data_file     = data_file,
                                 save_file     = save_file,
                                 ref_mag_cols  = ref_mag_cols,
-                                pred_mag_cols = pred_mag_cols)
+                                pred_mag_cols = pred_mag_cols,
+                                bayesian_flag = bayesian_flag)
     
     else:
         print("Models already fitted to reference.")
@@ -249,17 +254,22 @@ def fit_models_to_splus():
     print('')
     print('*********** Fitting models to S-PLUS ***************')
     print('')
-    
-    
-    models_file = path_to_models_file
+
     data_file   = calibration_path_initial  + "/initial_corrected_catalog.cat"
     save_file   = calibration_path_relative + "/splus_fit_models.cat"
+    
+    ext         = utils.load_data(data_file)
+    mode_ebv    = round(100*utils.get_mode_x(ext['EB_V']))/100 if step_flag else None
+
+    models_file = path_to_internal_models_file
     
     if not os.path.exists(save_file):
         utils.get_model_mags_v2(models_file   = models_file,
                                 data_file     = data_file,
                                 save_file     = save_file,
-                                ref_mag_cols  = splus_mag_cols)
+                                ref_mag_cols  = splus_mag_cols,
+                                bayesian_flag = bayesian_flag,
+                                cut           = mode_ebv)
     
     else:
         print("Models already fitted to splus.")
